@@ -58,7 +58,7 @@
     "pull-block": "^1.0.2",
     "pull-paramap": "^1.2.0",
     "pull-pushable": "^2.0.1",
-    "pull-stream": "^3.4.5",
+    "pull-stream": "^3.5.0",
     "pull-traverse": "^1.0.3",
     "pull-write": "^1.1.1",
     "run-parallel": "^1.1.6"
