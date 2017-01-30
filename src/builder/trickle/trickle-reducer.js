@@ -29,6 +29,8 @@ module.exports = function trickleReduceToRoot (reduce, options) {
           result.end()
         } else if (roots.length > 1) {
           result.end(new Error('expected a maximum of 1 roots and got ' + roots.length))
+        } else {
+          result.end()
         }
       }
     })
