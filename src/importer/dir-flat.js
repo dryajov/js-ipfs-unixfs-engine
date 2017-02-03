@@ -8,7 +8,7 @@ const UnixFS = require('ipfs-unixfs')
 const DAGLink = dagPB.DAGLink
 const DAGNode = dagPB.DAGNode
 
-class DirList {
+class DirFlat {
 
   constructor (props) {
     this._children = {}
@@ -45,14 +45,13 @@ class DirList {
   }
 
   flush (path, ipldResolver, source, callback) {
-    const keys = Object.keys(this._children)
-    const dir = new UnixFS('directory')
-    const links = keys
+    const links = Object.keys(this._children)
       .map((key) => {
         const child = this._children[key]
         return new DAGLink(key, child.size, child.multihash)
       })
 
+    const dir = new UnixFS('directory')
     waterfall(
       [
         (callback) => DAGNode.create(dir.marshal(), links, callback),
@@ -73,7 +72,7 @@ class DirList {
             size: node.size
           }
           source.push(pushable)
-          callback(null, node.multihash)
+          callback(null, node)
         }
       ],
       callback)
@@ -81,8 +80,8 @@ class DirList {
 
 }
 
-module.exports = createDirList
+module.exports = createDirFlat
 
-function createDirList (props) {
-  return new DirList(props)
+function createDirFlat (props) {
+  return new DirFlat(props)
 }

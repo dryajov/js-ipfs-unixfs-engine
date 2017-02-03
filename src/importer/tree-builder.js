@@ -7,8 +7,8 @@ const writable = require('pull-write')
 const pushable = require('pull-pushable')
 
 const dirTypes = {
-  flat: require('./dir-flat')
-  // sharded: require('./dir-sharded')
+  flat: require('./dir-flat'),
+  sharded: require('./dir-sharded')
 }
 
 module.exports = createTreeBuilder
@@ -113,24 +113,25 @@ function createTreeBuilder (ipldResolver, _options) {
           return // early
         }
 
-        if (last || !treeNode) {
-          const newNode = last ? elem : dirTypes.flat({
+        let newParentNode = treeNode
+        if (!last && !newParentNode) {
+          // No dir node for this path. Create it.
+          newParentNode = last ? elem : dirTypes.flat({
             dir: true,
             path: currentPath,
             dirty: true
           })
-          parent.put(pathElem, newNode, (err) => {
-            if (err) {
-              callback(err)
-              return
-            }
+        }
 
-            parent = newNode
-            callback()
-          })
+        if (last) {
+          // Reached our place. Put elem there.
+          parent.put(pathElem, elem, callback)
         } else {
-          parent = treeNode
-          process.nextTick(callback)
+          // Descend into tree
+          parent.put(pathElem, newParentNode, (err) => {
+            parent = newParentNode
+            callback(err)
+          })
         }
       })
     }, callback)
@@ -193,7 +194,13 @@ function createTreeBuilder (ipldResolver, _options) {
     // don't flush directory unless it's been modified
 
     tree.dirty = false
-    tree.flush(path, ipldResolver, stream.source, callback)
+    tree.flush(path, ipldResolver, stream.source, (err, node) => {
+      if (err) {
+        callback(err)
+      } else {
+        callback(null, node.multihash)
+      }
+    })
   }
 
   // function dirTypeForTree (tree) {
