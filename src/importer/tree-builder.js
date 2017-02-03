@@ -233,7 +233,7 @@ function createTreeBuilder (ipldResolver, _options) {
               callback(err)
             } else {
               if (dir.parent) {
-                dir.parent.set(dir.parentKey, newDir, callback)
+                dir.parent.put(dir.parentKey, newDir, callback)
               } else {
                 callback()
               }
