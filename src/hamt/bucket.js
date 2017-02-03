@@ -78,6 +78,10 @@ class Bucket {
     }, 0)
   }
 
+  childrenCount () {
+    return this._children.length
+  }
+
   onlyChild (callback) {
     process.nextTick(() => callback(null, this._children.get(0)))
   }

@@ -30,6 +30,10 @@ class DirFlat {
     return Object.keys(this._children).length
   }
 
+  directChildrenCount () {
+    return this.childCount()
+  }
+
   onlyChild (callback) {
     process.nextTick(() => callback(null, this._children[Object.keys(this._children)[0]]))
   }

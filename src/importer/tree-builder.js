@@ -31,7 +31,8 @@ function createTreeBuilder (ipldResolver, _options) {
     path: '',
     root: true,
     dir: true,
-    dirty: false
+    dirty: false,
+    flat: true
   })
 
   return {
@@ -118,20 +119,23 @@ function createTreeBuilder (ipldResolver, _options) {
           // No dir node for this path. Create it.
           newParentNode = last ? elem : dirTypes.flat({
             dir: true,
+            parent: parent,
+            parentKey: pathElem,
             path: currentPath,
-            dirty: true
+            dirty: true,
+            flat: true
           })
         }
 
         if (last) {
           // Reached our place. Put elem there.
-          parent.put(pathElem, elem, callback)
+          parent.put(pathElem, elem, maybeSharding(parent, callback))
         } else {
           // Descend into tree
-          parent.put(pathElem, newParentNode, (err) => {
+          parent.put(pathElem, newParentNode, maybeSharding(parent, (err) => {
             parent = newParentNode
             callback(err)
-          })
+          }))
         }
       })
     }, callback)
@@ -203,13 +207,47 @@ function createTreeBuilder (ipldResolver, _options) {
     })
   }
 
-  // function dirTypeForTree (tree) {
-  //   return tree.childCount() >= options.shardSplitThreshold ?
-  //     dirTypes.sharded :
-  //     dirTypes.flat
-  // }
+  function maybeSharding (dir, callback) {
+    return (err) => {
+      if (err) {
+        callback(err)
+        return // early
+      }
+
+      if (dir.flat && dir.directChildrenCount() >= options.shardSplitThreshold) {
+        const newDir = dirTypes.sharded({
+          dir: true,
+          parent: dir.parent,
+          parentKey: dir.parentKey,
+          path: dir.path,
+          dirty: dir.dirty,
+          flat: false
+        })
+
+        dir.eachChildSeries(
+          (key, value, callback) => {
+            dir.put(key, value, callback)
+          },
+          (err) => {
+            if (err) {
+              callback(err)
+            } else {
+              if (dir.parent) {
+                dir.parent.set(dir.parentKey, newDir, callback)
+              } else {
+                callback()
+              }
+            }
+          }
+        )
+      } else {
+        callback()
+      }
+    }
+  }
 }
 
 function notEmpty (str) {
   return Boolean(str)
 }
+

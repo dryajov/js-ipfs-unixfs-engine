@@ -38,6 +38,10 @@ class DirSharded {
     return this._bucket.leafCount()
   }
 
+  directChildrenCount () {
+    return this._bucket.childrenCount()
+  }
+
   onlyChild (callback) {
     this._bucket.onlyChild(callback)
   }
