@@ -64,6 +64,7 @@ module.exports = (repo) => {
           expect(nodes[0].path).to.be.eql('a/b')
           expect(nodes[1].path).to.be.eql('a')
           shardedHash = nodes[1].multihash
+          // hashes are different
           expect(shardedHash).to.not.equal(nonShardedHash)
           done()
         })
@@ -94,7 +95,7 @@ module.exports = (repo) => {
       )
     })
 
-    it.skip('exporting sharded hash results in the correct files', (done) => {
+    it('exporting sharded hash results in the correct files', (done) => {
       pull(
         exporter(shardedHash, ipldResolver),
         pull.collect((err, nodes) => {

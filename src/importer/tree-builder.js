@@ -2,14 +2,12 @@
 
 const eachSeries = require('async/eachSeries')
 const eachOfSeries = require('async/eachOfSeries')
+const waterfall = require('async/waterfall')
 const createQueue = require('async/queue')
 const writable = require('pull-write')
 const pushable = require('pull-pushable')
-
-const dirTypes = {
-  flat: require('./dir-flat'),
-  sharded: require('./dir-sharded')
-}
+const DirFlat = require('./dir-flat')
+const flatToShard = require('./flat-to-shard')
 
 module.exports = createTreeBuilder
 
@@ -27,7 +25,7 @@ function createTreeBuilder (ipldResolver, _options) {
   let stream = createStream()
 
   // root node
-  const tree = dirTypes.flat({
+  let tree = DirFlat({
     path: '',
     root: true,
     dir: true,
@@ -108,36 +106,37 @@ function createTreeBuilder (ipldResolver, _options) {
       parent.multihash = null
       parent.size = null
 
-      parent.get(pathElem, (err, treeNode) => {
-        if (err) {
-          callback(err)
-          return // early
-        }
-
-        let newParentNode = treeNode
-        if (!last && !newParentNode) {
-          // No dir node for this path. Create it.
-          newParentNode = last ? elem : dirTypes.flat({
-            dir: true,
-            parent: parent,
-            parentKey: pathElem,
-            path: currentPath,
-            dirty: true,
-            flat: true
-          })
-        }
-
-        if (last) {
-          // Reached our place. Put elem there.
-          parent.put(pathElem, elem, maybeSharding(parent, callback))
-        } else {
-          // Descend into tree
-          parent.put(pathElem, newParentNode, maybeSharding(parent, (err) => {
-            parent = newParentNode
+      if (last) {
+        waterfall([
+          (callback) => parent.put(pathElem, elem, callback),
+          (callback) => flatToShard(null, parent, options.shardSplitThreshold, callback),
+          (newRoot, callback) => {
+            tree = newRoot
+            callback()
+          }
+        ], callback)
+      } else {
+        parent.get(pathElem, (err, treeNode) => {
+          if (err) {
             callback(err)
-          }))
-        }
-      })
+            return // early
+          }
+          let dir = treeNode
+          if (!dir) {
+            dir = DirFlat({
+              dir: true,
+              parent: parent,
+              parentKey: pathElem,
+              path: currentPath,
+              dirty: true,
+              flat: true
+            })
+          }
+          const parentDir = parent
+          parent = dir
+          parentDir.put(pathElem, dir, callback)
+        })
+      }
     }, callback)
   }
 
@@ -205,45 +204,6 @@ function createTreeBuilder (ipldResolver, _options) {
         callback(null, node.multihash)
       }
     })
-  }
-
-  function maybeSharding (dir, callback) {
-    return (err) => {
-      if (err) {
-        callback(err)
-        return // early
-      }
-
-      if (dir.flat && dir.directChildrenCount() >= options.shardSplitThreshold) {
-        const newDir = dirTypes.sharded({
-          dir: true,
-          parent: dir.parent,
-          parentKey: dir.parentKey,
-          path: dir.path,
-          dirty: dir.dirty,
-          flat: false
-        })
-
-        dir.eachChildSeries(
-          (key, value, callback) => {
-            dir.put(key, value, callback)
-          },
-          (err) => {
-            if (err) {
-              callback(err)
-            } else {
-              if (dir.parent) {
-                dir.parent.put(dir.parentKey, newDir, callback)
-              } else {
-                callback()
-              }
-            }
-          }
-        )
-      } else {
-        callback()
-      }
-    }
   }
 }
 

@@ -1,6 +1,5 @@
 'use strict'
 
-const traverse = require('pull-traverse')
 const pull = require('pull-stream')
 const CID = require('cids')
 const isIPFS = require('is-ipfs')
