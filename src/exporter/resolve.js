@@ -2,7 +2,6 @@
 
 const UnixFS = require('ipfs-unixfs')
 const pull = require('pull-stream')
-const cat = require('pull-cat')
 
 const resolvers = {
   directory: require('./dir-flat'),
@@ -15,16 +14,13 @@ module.exports = Object.assign({
   typeOf: typeOf
 }, resolvers)
 
-function resolve (node, name, ipldResolver, parent) {
+function resolve (node, name, ipldResolver, parentNode) {
   const type = typeOf(node)
   const resolver = resolvers[type]
   if (!resolver) {
     return pull.error(new Error('Unkown node type ' + type))
   }
-  let stream = resolver(node, name, ipldResolver, resolve)
-  if (parent && type !== 'file') {
-    stream = cat([pull.values([parent]), stream])
-  }
+  let stream = resolver(node, name, ipldResolver, resolve, parentNode)
   return stream
 }
 

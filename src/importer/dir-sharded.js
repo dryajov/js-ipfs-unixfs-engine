@@ -51,7 +51,15 @@ class DirSharded {
   }
 
   flush (path, ipldResolver, source, callback) {
-    flush(this._bucket, path, ipldResolver, source, callback)
+    flush(this._bucket, path, ipldResolver, source, (err, node) => {
+      if (err) {
+        callback(err)
+      } else {
+        this.multihash = node.multihash
+        this.size = node.size
+      }
+      callback(null, node)
+    })
   }
 }
 
@@ -66,13 +74,13 @@ function flush (bucket, path, ipldResolver, source, callback) {
   mapSeries(
     children.compactArray(),
     (child, cb) => {
-      if (Bucket.isBucket(child.value)) {
-        flush(path, ipldResolver, source, (err, node) => {
+      if (Bucket.isBucket(child)) {
+        flush(child, path, ipldResolver, source, (err, node) => {
           if (err) {
             cb(err)
             return // early
           }
-          cb(null, new DAGLink(child.key, node.size, node.multihash))
+          cb(null, new DAGLink(null, node.size, node.multihash))
         })
       } else {
         const value = child.value
@@ -101,13 +109,12 @@ function flush (bucket, path, ipldResolver, source, callback) {
             (err) => callback(err, node))
         },
         (node, callback) => {
-          bucket.multihash = node.multihash
-          bucket.size = node.size
           const pushable = {
             path: path,
             multihash: node.multihash,
             size: node.size
           }
+          // console.log('PUSHING', mh.toB58String(pushable.multihash))
           source.push(pushable)
           callback(null, node)
         }

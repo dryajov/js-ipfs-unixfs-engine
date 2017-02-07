@@ -81,7 +81,7 @@ function createTreeBuilder (ipldResolver, _options) {
     }
 
     function ended (err) {
-      flush('', tree, (flushErr) => {
+      flushRoot((flushErr) => {
         source.end(flushErr || err)
       })
     }
@@ -146,7 +146,13 @@ function createTreeBuilder (ipldResolver, _options) {
     queue.push({
       fn: flush,
       args: ['', tree],
-      cb: callback
+      cb: (err, node) => {
+        if (err) {
+          callback(err)
+        } else {
+          callback(null, node && node.multihash)
+        }
+      }
     })
   }
 
@@ -182,8 +188,7 @@ function createTreeBuilder (ipldResolver, _options) {
           return // early
         }
 
-        const multihash = onlyChild && onlyChild.multihash
-        callback(null, multihash)
+        callback(null, onlyChild)
       })
 
       return // early
@@ -201,7 +206,7 @@ function createTreeBuilder (ipldResolver, _options) {
       if (err) {
         callback(err)
       } else {
-        callback(null, node.multihash)
+        callback(null, node)
       }
     })
   }
