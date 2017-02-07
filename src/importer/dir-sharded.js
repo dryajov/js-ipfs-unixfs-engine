@@ -14,6 +14,7 @@ const Bucket = require('../hamt')
 const hashFn = function (value, callback) {
   multihashing(value, 'murmur3', callback)
 }
+hashFn.code = 0x22 // TODO: get this from multihashing-async?
 
 const defaultOptions = {
   hashFn: hashFn
@@ -22,6 +23,7 @@ const defaultOptions = {
 class DirSharded {
   constructor (props, _options) {
     const options = Object.assign({}, defaultOptions, _options)
+    this._options = options
     this._bucket = Bucket(options)
     Object.assign(this, props)
   }
@@ -51,7 +53,7 @@ class DirSharded {
   }
 
   flush (path, ipldResolver, source, callback) {
-    flush(this._bucket, path, ipldResolver, source, (err, node) => {
+    flush(this._options, this._bucket, path, ipldResolver, source, (err, node) => {
       if (err) {
         callback(err)
       } else {
@@ -69,13 +71,13 @@ function createDirSharded (props) {
   return new DirSharded(props)
 }
 
-function flush (bucket, path, ipldResolver, source, callback) {
+function flush (options, bucket, path, ipldResolver, source, callback) {
   const children = bucket._children // TODO: intromission
   mapSeries(
     children.compactArray(),
     (child, cb) => {
       if (Bucket.isBucket(child)) {
-        flush(child, path, ipldResolver, source, (err, node) => {
+        flush(options, child, path, ipldResolver, source, (err, node) => {
           if (err) {
             cb(err)
             return // early
@@ -97,6 +99,8 @@ function flush (bucket, path, ipldResolver, source, callback) {
 
   function haveLinks (links) {
     const dir = new UnixFS('hamt-sharded-directory', new Buffer(children.bitField()))
+    dir.fanout = bucket.tableSize()
+    dir.hashType = options.hashFn.code
     waterfall(
       [
         (callback) => DAGNode.create(dir.marshal(), links, callback),

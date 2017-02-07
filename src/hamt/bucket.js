@@ -125,6 +125,10 @@ class Bucket {
     return JSON.stringify(this.toJSON(), null, '  ')
   }
 
+  tableSize() {
+    return Math.pow(2, this._options.bits)
+  }
+
   _findChild (key, callback) {
     this._findPlace(key, (err, result) => {
       if (err) {
